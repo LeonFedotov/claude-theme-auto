@@ -33,11 +33,12 @@ The Bun-compiled Mach-O binary embeds JS source at a fixed offset. The replaceme
 |---|---|
 | `===` → `==` (8 string comparisons) | 8 |
 | `!==null` → `!=null` (2 occurrences) | 2 |
-| `spawnSync` with array args → `execSync` with single string + try/catch | 53 |
+| `spawnSync` with array args → `execSync` with try/catch + `2>/dev/null` | 41 |
 | `Pu_===void 0` → `??=` operator | 22 |
-| **Total saved** | **85** |
+| `function $k6(){return pPR()}` → `var $k6=pPR;` | 16 |
+| **Total saved** | **89** |
 | Interval code added | −76 |
-| **Net surplus (padded with spaces)** | **9** |
+| **Net surplus (padded with spaces)** | **13** |
 
 After patching, the binary is ad-hoc re-signed with `codesign -s -`.
 
