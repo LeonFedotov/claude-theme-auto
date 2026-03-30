@@ -37,74 +37,150 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------------------
-# Patch definitions
+# Patch definitions — each entry is (original, patched_core, pad_marker)
+# The pad_marker is the string before which spaces are inserted to match length.
 # ---------------------------------------------------------------------------
 
-ORIGINAL = (
-    b'function Jfq(){if(Pu_===void 0)Pu_=$k6();return Pu_}'
-    b'function Wfq(){return Pu_=$k6(),Pu_}'
-    b'function Dm(_){if(_==="auto")return Jfq();return _}'
-    b'function $k6(){return pPR()}'
-    b'function pPR(){let _=Kk6.spawnSync("defaults",["read","-g","AppleInterfaceStyle"],'
-    b'{encoding:"utf8",timeout:1000});if(_.status===0&&_.stdout.trim()==="Dark")'
-    b'return"dark";return"light"}'
-    b'var Kk6,Pu_;var HP_=X(()=>{Kk6=require("child_process")});'
-    b'function BPR(){return DT().theme}'
-    b'function gPR(_){UT((T)=>({...T,theme:_}))}'
-    b'function MDT({children:_,initialState:T,onThemeSave:q=gPR}){'
-    b'let[R,K]=fm.useState(T??BPR),[$,O]=fm.useState(null),'
-    b'[A,H]=fm.useState(()=>(T??R)==="auto"?Jfq():"dark"),z=$??R;'
-    b'WDT.useEffect(()=>{},[z]);'
-    b'let j=z==="auto"?A:z,'
-    b'D=Ak6.useMemo(()=>({themeSetting:R,'
-    b'setThemeSetting:(f)=>{if(K(f),O(null),f==="auto")H(Wfq());q?.(f)},'
-    b'setPreviewTheme:(f)=>{if(O(f),f==="auto")H(Wfq())},'
-    b'savePreview:()=>{if($!==null)K($),O(null),q?.($)},'
-    b'cancelPreview:()=>{if($!==null)O(null)},'
-    b'currentTheme:j}),[R,$,j,q]);'
-    b'return WDT.default.createElement(XDT.Provider,{value:D},_)}'
-)
+VERSIONS = [
+    {
+        "label": "2.1.76",
+        "original": (
+            b'function Jfq(){if(Pu_===void 0)Pu_=$k6();return Pu_}'
+            b'function Wfq(){return Pu_=$k6(),Pu_}'
+            b'function Dm(_){if(_==="auto")return Jfq();return _}'
+            b'function $k6(){return pPR()}'
+            b'function pPR(){let _=Kk6.spawnSync("defaults",["read","-g","AppleInterfaceStyle"],'
+            b'{encoding:"utf8",timeout:1000});if(_.status===0&&_.stdout.trim()==="Dark")'
+            b'return"dark";return"light"}'
+            b'var Kk6,Pu_;var HP_=X(()=>{Kk6=require("child_process")});'
+            b'function BPR(){return DT().theme}'
+            b'function gPR(_){UT((T)=>({...T,theme:_}))}'
+            b'function MDT({children:_,initialState:T,onThemeSave:q=gPR}){'
+            b'let[R,K]=fm.useState(T??BPR),[$,O]=fm.useState(null),'
+            b'[A,H]=fm.useState(()=>(T??R)==="auto"?Jfq():"dark"),z=$??R;'
+            b'WDT.useEffect(()=>{},[z]);'
+            b'let j=z==="auto"?A:z,'
+            b'D=Ak6.useMemo(()=>({themeSetting:R,'
+            b'setThemeSetting:(f)=>{if(K(f),O(null),f==="auto")H(Wfq());q?.(f)},'
+            b'setPreviewTheme:(f)=>{if(O(f),f==="auto")H(Wfq())},'
+            b'savePreview:()=>{if($!==null)K($),O(null),q?.($)},'
+            b'cancelPreview:()=>{if($!==null)O(null)},'
+            b'currentTheme:j}),[R,$,j,q]);'
+            b'return WDT.default.createElement(XDT.Provider,{value:D},_)}'
+        ),
+        "patched": (
+            b'function Jfq(){return Pu_??=pPR()}'
+            b'function Wfq(){return Pu_=pPR()}'
+            b'function Dm(_){if(_=="auto")return Jfq();return _}'
+            b'var $k6=pPR;'
+            b'function pPR(){try{return(""+Kk6.execSync('
+            b'process.env.HOME+"/.claude/detect-theme"'
+            b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
+            b'var Kk6,Pu_;var HP_=X(()=>{Kk6=require("child_process")});'
+            b'function BPR(){return DT().theme}'
+            b'function gPR(_){UT((T)=>({...T,theme:_}))}'
+            b'function MDT({children:_,initialState:T,onThemeSave:q=gPR}){'
+            b'let[R,K]=fm.useState(T??BPR),[$,O]=fm.useState(null),'
+            b'[A,H]=fm.useState(()=>(T??R)=="auto"?Jfq():"dark"),z=$??R;'
+            b'WDT.useEffect(()=>{let t=z=="auto"&&setInterval(()=>H(pPR()),5e3);'
+            b'return()=>clearInterval(t)},[z]);'
+            b'let j=z=="auto"?A:z,'
+            b'D=Ak6.useMemo(()=>({themeSetting:R,'
+            b'setThemeSetting:(f)=>{if(K(f),O(null),f=="auto")H(Wfq());q?.(f)},'
+            b'setPreviewTheme:(f)=>{if(O(f),f=="auto")H(Wfq())},'
+            b'savePreview:()=>{if($!=null)K($),O(null),q?.($)},'
+            b'cancelPreview:()=>{if($!=null)O(null)},'
+            b'currentTheme:j}),[R,$,j,q]);'
+            b'return WDT.default.createElement(XDT.Provider,{value:D},_)}'
+        ),
+        "pad_before": b"]);return WDT",
+    },
+    {
+        "label": "2.1.86",
+        "original": (
+            b'function Cd8(){if(qR6===void 0)qR6=_k5()??"dark";return qR6}'
+            b'function Wg(q){if(q==="auto")return Cd8();return q}'
+            b'function _k5(){let q=process.env.COLORFGBG;if(!q)return;'
+            b'let _=q.split(";"),K=_[_.length-1];'
+            b'if(K===void 0||K==="")return;'
+            b'let O=Number(K);if(!Number.isInteger(O)||O<0||O>15)return;'
+            b'return O<=6||O===8?"dark":"light"}'
+            b'var qR6;'
+            b'function Kk5(){return $q().theme}'
+            b'function Ok5(q){Iq((_)=>({..._,theme:q}))}'
+            b'function EGq({children:q,initialState:_,onThemeSave:K=Ok5}){'
+            b'let[O,z]=zA.useState(_??Kk5),[Y,H]=zA.useState(null),'
+            b'[$,w]=zA.useState(()=>(_??O)==="auto"?Cd8():"dark"),'
+            b'j=Y??O,{internal_querier:J}=yq8();'
+            b'zA.useEffect(()=>{},[j,J]);'
+            b'let T=j==="auto"?$:j,'
+            b'X=zA.useMemo(()=>({themeSetting:O,'
+            b'setThemeSetting:(D)=>{if(z(D),H(null),D==="auto")w(Cd8());K?.(D)},'
+            b'setPreviewTheme:(D)=>{if(H(D),D==="auto")w(Cd8())},'
+            b'savePreview:()=>{if(Y!==null)z(Y),H(null),K?.(Y)},'
+            b'cancelPreview:()=>{if(Y!==null)H(null)},'
+            b'currentTheme:T}),[O,Y,T,K]);'
+            b'return zA.default.createElement(SGq.Provider,{value:X},q)}'
+        ),
+        "patched": (
+            b'function Cd8(){return qR6??=_k5()??"dark"}'
+            b'function Wg(q){if(q=="auto")return Cd8();return q}'
+            b'function _k5(){try{return(""+require("child_process").execSync('
+            b'process.env.HOME+"/.claude/detect-theme"'
+            b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
+            b'var qR6;'
+            b'function Kk5(){return $q().theme}'
+            b'function Ok5(q){Iq((_)=>({..._,theme:q}))}'
+            b'function EGq({children:q,initialState:_,onThemeSave:K=Ok5}){'
+            b'let[O,z]=zA.useState(_??Kk5),[Y,H]=zA.useState(null),'
+            b'[$,w]=zA.useState(()=>(_??O)=="auto"?Cd8():"dark"),'
+            b'j=Y??O,{internal_querier:J}=yq8();'
+            b'zA.useEffect(()=>{let t=j=="auto"&&setInterval(()=>w(_k5()),5e3);'
+            b'return()=>clearInterval(t)},[j,J]);'
+            b'let T=j=="auto"?$:j,'
+            b'X=zA.useMemo(()=>({themeSetting:O,'
+            b'setThemeSetting:(D)=>{if(z(D),H(null),D=="auto")w(Cd8());K?.(D)},'
+            b'setPreviewTheme:(D)=>{if(H(D),D=="auto")w(Cd8())},'
+            b'savePreview:()=>{if(Y!=null)z(Y),H(null),K?.(Y)},'
+            b'cancelPreview:()=>{if(Y!=null)H(null)},'
+            b'currentTheme:T}),[O,Y,T,K]);'
+            b'return zA.default.createElement(SGq.Provider,{value:X},q)}'
+        ),
+        "pad_before": b"]);return zA",
+    },
+]
 
-PATCHED_CORE = (
-    b'function Jfq(){return Pu_??=pPR()}'
-    b'function Wfq(){return Pu_=pPR()}'
-    b'function Dm(_){if(_=="auto")return Jfq();return _}'
-    b'var $k6=pPR;'
-    b'function pPR(){try{return(""+Kk6.execSync('
-    b'process.env.HOME+"/.claude/detect-theme"'
-    b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
-    b'var Kk6,Pu_;var HP_=X(()=>{Kk6=require("child_process")});'
-    b'function BPR(){return DT().theme}'
-    b'function gPR(_){UT((T)=>({...T,theme:_}))}'
-    b'function MDT({children:_,initialState:T,onThemeSave:q=gPR}){'
-    b'let[R,K]=fm.useState(T??BPR),[$,O]=fm.useState(null),'
-    b'[A,H]=fm.useState(()=>(T??R)=="auto"?Jfq():"dark"),z=$??R;'
-    b'WDT.useEffect(()=>{let t=z=="auto"&&setInterval(()=>H(pPR()),5e3);'
-    b'return()=>clearInterval(t)},[z]);'
-    b'let j=z=="auto"?A:z,'
-    b'D=Ak6.useMemo(()=>({themeSetting:R,'
-    b'setThemeSetting:(f)=>{if(K(f),O(null),f=="auto")H(Wfq());q?.(f)},'
-    b'setPreviewTheme:(f)=>{if(O(f),f=="auto")H(Wfq())},'
-    b'savePreview:()=>{if($!=null)K($),O(null),q?.($)},'
-    b'cancelPreview:()=>{if($!=null)O(null)},'
-    b'currentTheme:j}),[R,$,j,q]);'
-    b'return WDT.default.createElement(XDT.Provider,{value:D},_)}'
-)
+
+def find_matching_version(data: bytes) -> dict | None:
+    """Find which version's original pattern matches the binary."""
+    for v in VERSIONS:
+        if v["original"] in data:
+            return v
+    return None
 
 
-def build_patched(original: bytes) -> bytes:
+def find_patched_version(data: bytes) -> dict | None:
+    """Find which version's patched pattern matches the binary."""
+    for v in VERSIONS:
+        padded = build_patched(v)
+        if padded in data:
+            return v
+    return None
+
+
+def build_patched(version: dict) -> bytes:
     """Build the patched version, padded to exactly match original length."""
-    diff = len(original) - len(PATCHED_CORE)
+    original = version["original"]
+    patched = version["patched"]
+    pad_before = version["pad_before"]
+    diff = len(original) - len(patched)
     if diff < 0:
-        print(f"ERROR: patched code is {abs(diff)} bytes longer than original.")
-        print("This version of Claude Code may need an updated patch.")
-        sys.exit(1)
+        raise ValueError(
+            f"Patched code for {version['label']} is {abs(diff)} bytes longer than original"
+        )
     if diff == 0:
-        return PATCHED_CORE
-    # Pad with spaces before the final 'return WDT'
-    return PATCHED_CORE.replace(
-        b"]);return WDT", b"]);" + b" " * diff + b"return WDT"
-    )
+        return patched
+    return patched.replace(pad_before, b"]);" + b" " * diff + pad_before[3:])
 
 
 # ---------------------------------------------------------------------------
@@ -193,25 +269,25 @@ def install_detect_theme(dry_run: bool = False) -> bool:
 # Patch operations
 # ---------------------------------------------------------------------------
 
-def check_status(data: bytes) -> str:
-    """Return 'original', 'patched', or 'unknown'."""
-    if ORIGINAL in data:
-        return "original"
-    patched = build_patched(ORIGINAL)
-    if patched in data:
-        return "patched"
-    return "unknown"
+def check_status(data: bytes) -> tuple[str, dict | None]:
+    """Return ('original'|'patched'|'unknown', matched_version)."""
+    v = find_matching_version(data)
+    if v:
+        return "original", v
+    v = find_patched_version(data)
+    if v:
+        return "patched", v
+    return "unknown", None
 
 
 def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
     with open(binary_path, "rb") as f:
         data = f.read()
 
-    status = check_status(data)
+    status, version = check_status(data)
     if status == "patched":
-        # Still install detect-theme in case it was deleted
         install_detect_theme(dry_run)
-        print("Binary already patched. Nothing to do.")
+        print(f"Binary already patched (v{version['label']}). Nothing to do.")
         return True
     if status == "unknown":
         print("ERROR: Could not find the expected code pattern in this binary.")
@@ -219,13 +295,14 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
         print("Run with --check for details.")
         return False
 
-    count = data.count(ORIGINAL)
-    patched_bytes = build_patched(ORIGINAL)
-    assert len(patched_bytes) == len(ORIGINAL)
+    print(f"Matched pattern: v{version['label']}")
+    count = data.count(version["original"])
+    patched_bytes = build_patched(version)
+    assert len(patched_bytes) == len(version["original"])
 
     if dry_run:
         print(f"DRY RUN: Would patch {count} occurrence(s) in {binary_path}")
-        print(f"  Pattern length: {len(ORIGINAL)} bytes (same-length replacement)")
+        print(f"  Pattern length: {len(version['original'])} bytes (same-length replacement)")
         print(f"  Detection: ~/.claude/detect-theme (OSC 11 terminal query)")
         install_detect_theme(dry_run=True)
         return True
@@ -243,7 +320,7 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
         print(f"Backup already exists: {backup_path}")
 
     # Patch
-    new_data = data.replace(ORIGINAL, patched_bytes)
+    new_data = data.replace(version["original"], patched_bytes)
     assert len(new_data) == len(data), "Binary size changed!"
 
     with open(binary_path, "wb") as f:
@@ -369,8 +446,9 @@ Examples:
 
     with open(binary_path, "rb") as f:
         data = f.read()
-    status = check_status(data)
-    print(f"Status: {status}")
+    status, version = check_status(data)
+    vlabel = f" (v{version['label']})" if version else ""
+    print(f"Status: {status}{vlabel}")
 
     if args.check:
         if status == "original":
@@ -379,6 +457,8 @@ Examples:
             print("Binary is already patched with reactive theme switching.")
         else:
             print("Binary does not match known patterns. Possibly a different version.")
+            supported = ", ".join(v["label"] for v in VERSIONS)
+            print(f"Supported versions: {supported}")
         dt = "installed" if os.path.exists(DETECT_THEME_PATH) else "NOT installed"
         print(f"detect-theme: {dt}")
         sys.exit(0)
