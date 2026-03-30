@@ -114,6 +114,7 @@ The `detect-theme` script uses OSC 11, so theme detection works through SSH + tm
 | 2.1.76 | macOS arm64 (mise) | Tested | 2026-03-29 | Bun Mach-O, `defaults read` detection |
 | 2.1.86 | Linux aarch64 (mise) | Tested | 2026-03-30 | Bun ELF, `COLORFGBG` detection |
 | 2.1.87 | macOS arm64 (mise) | Tested | 2026-03-30 | Same structure as 2.1.86, different function names |
+| 2.1.87 | Linux aarch64 (mise) | Tested | 2026-03-30 | Different names than macOS build of same version |
 
 ### Version differences
 

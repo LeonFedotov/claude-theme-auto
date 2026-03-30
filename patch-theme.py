@@ -201,6 +201,59 @@ VERSIONS = [
         ),
         "pad_before": b"]);return KG",
     },
+    {
+        "label": "2.1.87-linux",
+        "original": (
+            b'function Cd8(){if(qR6===void 0)qR6=_k5()??"dark";return qR6}'
+            b'function Wg(q){if(q==="auto")return Cd8();return q}'
+            b'function _k5(){let q=process.env.COLORFGBG;if(!q)return;'
+            b'let _=q.split(";"),K=_[_.length-1];'
+            b'if(K===void 0||K==="")return;'
+            b'let O=Number(K);if(!Number.isInteger(O)||O<0||O>15)return;'
+            b'return O<=6||O===8?"dark":"light"}'
+            b'var qR6;'
+            b'function Kk5(){return $q().theme}'
+            b'function Ok5(q){Iq((_)=>({..._,theme:q}))}'
+            b'function EGq({children:q,initialState:_,onThemeSave:K=Ok5}){'
+            b'let[O,z]=OA.useState(_??Kk5),[Y,H]=OA.useState(null),'
+            b'[$,w]=OA.useState(()=>(_??O)==="auto"?Cd8():"dark"),'
+            b'j=Y??O,{internal_querier:J}=Vq8();'
+            b'OA.useEffect(()=>{},[j,J]);'
+            b'let T=j==="auto"?$:j,'
+            b'X=OA.useMemo(()=>({themeSetting:O,'
+            b'setThemeSetting:(D)=>{if(z(D),H(null),D==="auto")w(Cd8());K?.(D)},'
+            b'setPreviewTheme:(D)=>{if(H(D),D==="auto")w(Cd8())},'
+            b'savePreview:()=>{if(Y!==null)z(Y),H(null),K?.(Y)},'
+            b'cancelPreview:()=>{if(Y!==null)H(null)},'
+            b'currentTheme:T}),[O,Y,T,K]);'
+            b'return OA.default.createElement(SGq.Provider,{value:X},q)}'
+        ),
+        "patched": (
+            b'function Cd8(){return qR6??=_k5()??"dark"}'
+            b'function Wg(q){if(q=="auto")return Cd8();return q}'
+            b'function _k5(){try{return(""+require("child_process").execSync('
+            b'process.env.HOME+"/.claude/detect-theme"'
+            b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
+            b'var qR6;'
+            b'function Kk5(){return $q().theme}'
+            b'function Ok5(q){Iq((_)=>({..._,theme:q}))}'
+            b'function EGq({children:q,initialState:_,onThemeSave:K=Ok5}){'
+            b'let[O,z]=OA.useState(_??Kk5),[Y,H]=OA.useState(null),'
+            b'[$,w]=OA.useState(()=>(_??O)=="auto"?Cd8():"dark"),'
+            b'j=Y??O,{internal_querier:J}=Vq8();'
+            b'OA.useEffect(()=>{let t=j=="auto"&&setInterval(()=>w(_k5()),5e3);'
+            b'return()=>clearInterval(t)},[j,J]);'
+            b'let T=j=="auto"?$:j,'
+            b'X=OA.useMemo(()=>({themeSetting:O,'
+            b'setThemeSetting:(D)=>{if(z(D),H(null),D=="auto")w(Cd8());K?.(D)},'
+            b'setPreviewTheme:(D)=>{if(H(D),D=="auto")w(Cd8())},'
+            b'savePreview:()=>{if(Y!=null)z(Y),H(null),K?.(Y)},'
+            b'cancelPreview:()=>{if(Y!=null)H(null)},'
+            b'currentTheme:T}),[O,Y,T,K]);'
+            b'return OA.default.createElement(SGq.Provider,{value:X},q)}'
+        ),
+        "pad_before": b"]);return OA",
+    },
 ]
 
 
