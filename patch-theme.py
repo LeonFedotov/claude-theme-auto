@@ -2,20 +2,23 @@
 """
 Claude Code Theme Auto-Switch Patch
 
-Patches the Claude Code binary to reactively follow macOS system appearance
-(dark/light mode) while a session is running. Without this patch, the built-in
-"auto" theme only detects the OS theme at startup.
+Patches the Claude Code binary to reactively follow the terminal's dark/light
+mode while a session is running. Without this patch, the built-in "auto" theme
+only detects the OS theme at startup.
 
 The patch adds a 5-second polling interval inside the theme provider's
-useEffect hook. When the theme setting is "auto", it periodically runs
-`defaults read -g AppleInterfaceStyle` and updates the React state if the
-result changed. React's useState deduplicates identical values, so no
-re-render occurs unless the theme actually switches.
+useEffect hook. When the theme setting is "auto", it periodically calls
+~/.claude/detect-theme (installed by this patcher) which uses OSC 11 to
+query the terminal's background color and derive dark/light from luminance.
+
+This works on macOS, Linux, through SSH, and through tmux — anywhere the
+terminal supports OSC 11 (Ghostty, iTerm2, WezTerm, Kitty, and most modern
+terminal emulators).
 
 Byte-budget technique: the replacement must be exactly the same length as
-the original to avoid shifting offsets in the Mach-O binary. We achieve this
-by compressing nearby code (=== to ==, spawnSync to execSync, ??= operator)
-and padding with whitespace.
+the original to avoid shifting offsets in the binary. We achieve this by
+compressing nearby code (=== to ==, ??= operator, etc.) and padding with
+whitespace.
 
 Usage:
     python3 patch-theme.py              # Apply patch
@@ -30,6 +33,8 @@ import platform
 import shutil
 import subprocess
 import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------------------
 # Patch definitions
@@ -65,8 +70,9 @@ PATCHED_CORE = (
     b'function Wfq(){return Pu_=pPR()}'
     b'function Dm(_){if(_=="auto")return Jfq();return _}'
     b'var $k6=pPR;'
-    b'function pPR(){try{return/Dark/.test(""+Kk6.execSync('
-    b'"defaults read -g AppleInterfaceStyle 2>/dev/null"))?"dark":"light"}catch{return"light"}}'
+    b'function pPR(){try{return(""+Kk6.execSync('
+    b'process.env.HOME+"/.claude/detect-theme"'
+    b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
     b'var Kk6,Pu_;var HP_=X(()=>{Kk6=require("child_process")});'
     b'function BPR(){return DT().theme}'
     b'function gPR(_){UT((T)=>({...T,theme:_}))}'
@@ -108,7 +114,7 @@ def build_patched(original: bytes) -> bytes:
 def find_claude_binary() -> str | None:
     """Locate the Claude Code binary using multiple strategies."""
 
-    # 1. mise (the user's setup)
+    # 1. mise
     mise_path = os.path.expanduser("~/.local/share/mise/installs/claude")
     if os.path.isdir(mise_path):
         versions = sorted(os.listdir(mise_path), reverse=True)
@@ -117,26 +123,23 @@ def find_claude_binary() -> str | None:
             if os.path.isfile(candidate):
                 return candidate
 
-    # 2. which / where
+    # 2. which
     try:
         result = subprocess.run(
             ["which", "claude"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
-            path = result.stdout.strip()
-            # Resolve symlinks
-            path = os.path.realpath(path)
+            path = os.path.realpath(result.stdout.strip())
             if os.path.isfile(path):
                 return path
     except Exception:
         pass
 
-    # 3. Common global locations
-    candidates = [
+    # 3. Common locations
+    for c in [
         os.path.expanduser("~/.claude/local/claude"),
         "/usr/local/bin/claude",
-    ]
-    for c in candidates:
+    ]:
         if os.path.isfile(c):
             return os.path.realpath(c)
 
@@ -144,7 +147,7 @@ def find_claude_binary() -> str | None:
 
 
 def detect_binary_type(path: str) -> str:
-    """Check whether the binary is Mach-O (Bun) or a Node.js script."""
+    """Check whether the binary is Mach-O or ELF (Bun-compiled)."""
     try:
         result = subprocess.run(
             ["file", path], capture_output=True, text=True, timeout=5
@@ -152,11 +155,38 @@ def detect_binary_type(path: str) -> str:
         output = result.stdout
         if "Mach-O" in output:
             return "macho"
+        if "ELF" in output:
+            return "elf"
         if "text" in output.lower() or "script" in output.lower():
             return "script"
     except Exception:
         pass
     return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Detect-theme script
+# ---------------------------------------------------------------------------
+
+DETECT_THEME_PATH = os.path.expanduser("~/.claude/detect-theme")
+
+
+def install_detect_theme(dry_run: bool = False) -> bool:
+    """Install the detect-theme script to ~/.claude/detect-theme."""
+    source = os.path.join(SCRIPT_DIR, "detect-theme")
+    if not os.path.exists(source):
+        print(f"ERROR: detect-theme script not found at {source}")
+        return False
+
+    if dry_run:
+        print(f"DRY RUN: Would install {source} → {DETECT_THEME_PATH}")
+        return True
+
+    os.makedirs(os.path.dirname(DETECT_THEME_PATH), exist_ok=True)
+    shutil.copy2(source, DETECT_THEME_PATH)
+    os.chmod(DETECT_THEME_PATH, 0o755)
+    print(f"Installed detect-theme → {DETECT_THEME_PATH}")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +209,9 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
 
     status = check_status(data)
     if status == "patched":
-        print("Already patched. Nothing to do.")
+        # Still install detect-theme in case it was deleted
+        install_detect_theme(dry_run)
+        print("Binary already patched. Nothing to do.")
         return True
     if status == "unknown":
         print("ERROR: Could not find the expected code pattern in this binary.")
@@ -194,12 +226,15 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
     if dry_run:
         print(f"DRY RUN: Would patch {count} occurrence(s) in {binary_path}")
         print(f"  Pattern length: {len(ORIGINAL)} bytes (same-length replacement)")
-        print(f"\n  Original useEffect: WDT.useEffect(()=>{{}},['z'])")
-        print(f"  Patched  useEffect: WDT.useEffect(()=>{{let t=z==\"auto\"&&"
-              f"setInterval(()=>H(pPR()),5e3);return()=>clearInterval(t)}},[z])")
+        print(f"  Detection: ~/.claude/detect-theme (OSC 11 terminal query)")
+        install_detect_theme(dry_run=True)
         return True
 
-    # Backup
+    # Install detect-theme script first
+    if not install_detect_theme():
+        return False
+
+    # Backup binary
     backup_path = binary_path + ".backup"
     if not os.path.exists(backup_path):
         shutil.copy2(binary_path, backup_path)
@@ -232,11 +267,11 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
         else:
             print(f"WARNING: codesign failed: {result.stderr}")
 
-    # Set theme to auto if not already
+    # Set theme to auto
     set_theme_auto()
 
     print("\nDone! Restart Claude Code to activate.")
-    print("Theme will now follow macOS appearance (polls every 5 seconds).")
+    print("Theme follows the terminal (polls every 5s via OSC 11).")
     return True
 
 
@@ -249,7 +284,6 @@ def restore(binary_path: str) -> bool:
     shutil.copy2(backup_path, binary_path)
     print(f"Restored from {backup_path}")
 
-    # Re-sign
     if platform.system() == "Darwin":
         subprocess.run(
             ["codesign", "--remove-signature", binary_path],
@@ -293,7 +327,7 @@ def set_theme_auto():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Patch Claude Code for reactive macOS theme switching",
+        description="Patch Claude Code for reactive terminal theme switching",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -318,7 +352,6 @@ Examples:
     )
     args = parser.parse_args()
 
-    # Find binary
     binary_path = args.path or find_claude_binary()
     if not binary_path:
         print("ERROR: Could not find Claude Code binary.")
@@ -327,16 +360,13 @@ Examples:
 
     print(f"Binary: {binary_path}")
 
-    # Check binary type
     btype = detect_binary_type(binary_path)
-    if btype != "macho":
-        print(f"WARNING: Expected Mach-O binary, got: {btype}")
-        print("This patcher targets Bun-compiled Claude Code binaries (mise, standalone).")
-        print("For npm installations, the JS source (cli.js) can be edited directly.")
+    if btype not in ("macho", "elf"):
+        print(f"WARNING: Expected Mach-O or ELF binary, got: {btype}")
+        print("This patcher targets Bun-compiled Claude Code binaries.")
         if not args.check:
             sys.exit(1)
 
-    # Check status
     with open(binary_path, "rb") as f:
         data = f.read()
     status = check_status(data)
@@ -349,13 +379,14 @@ Examples:
             print("Binary is already patched with reactive theme switching.")
         else:
             print("Binary does not match known patterns. Possibly a different version.")
+        dt = "installed" if os.path.exists(DETECT_THEME_PATH) else "NOT installed"
+        print(f"detect-theme: {dt}")
         sys.exit(0)
 
     if args.restore:
         success = restore(binary_path)
         sys.exit(0 if success else 1)
 
-    # Apply
     success = apply_patch(binary_path, dry_run=args.dry_run)
     sys.exit(0 if success else 1)
 

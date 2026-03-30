@@ -1,0 +1,28 @@
+#!/bin/sh
+# Detect terminal dark/light mode via OSC 11 (query background color).
+# Works on macOS, Linux, through SSH, tmux, and any terminal supporting OSC 11.
+# Prints "dark" or "light" to stdout. Falls back to "dark" on failure.
+exec 3<>/dev/tty 2>/dev/null || { echo dark; exit 0; }
+old=$(stty -g </dev/tty 2>/dev/null)
+stty raw -echo </dev/tty 2>/dev/null
+printf '\033]11;?\033\\' >&3
+r=
+while IFS= read -r -t 1 -n 1 c <&3 2>/dev/null; do
+  r="$r$c"
+  case "$r" in *\\) break;; *) ;; esac
+  # Safety limit
+  if [ ${#r} -gt 60 ]; then break; fi
+done
+stty "$old" </dev/tty 2>/dev/null
+exec 3>&-
+case "$r" in
+  *rgb:*)
+    hex=$(echo "$r" | sed 's/.*rgb:\([^\\]*\).*/\1/')
+    R=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f1 | cut -c1-2)")
+    G=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f2 | cut -c1-2)")
+    B=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f3 | cut -c1-2)")
+    lum=$(( (R * 299 + G * 587 + B * 114) / 1000 ))
+    if [ "$lum" -lt 128 ]; then echo dark; else echo light; fi
+    ;;
+  *) echo dark ;;
+esac
