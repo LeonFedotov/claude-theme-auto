@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Detect terminal dark/light mode via OSC 11 (query background color).
 # Works on macOS, Linux, through SSH, tmux, and any terminal supporting OSC 11.
 # Prints "dark" or "light" to stdout. Falls back to "dark" on failure.
