@@ -148,6 +148,59 @@ VERSIONS = [
         ),
         "pad_before": b"]);return zA",
     },
+    {
+        "label": "2.1.87",
+        "original": (
+            b'function IFH(){if($k6===void 0)$k6=MR4()??"dark";return $k6}'
+            b'function Rg(H){if(H==="auto")return IFH();return H}'
+            b'function MR4(){let H=process.env.COLORFGBG;if(!H)return;'
+            b'let _=H.split(";"),q=_[_.length-1];'
+            b'if(q===void 0||q==="")return;'
+            b'let $=Number(q);if(!Number.isInteger($)||$<0||$>15)return;'
+            b'return $<=6||$===8?"dark":"light"}'
+            b'var $k6;'
+            b'function JR4(){return z_().theme}'
+            b'function PR4(H){u_((_)=>({..._,theme:H}))}'
+            b'function E0_({children:H,initialState:_,onThemeSave:q=PR4}){'
+            b'let[$,K]=KG.useState(_??JR4),[O,T]=KG.useState(null),'
+            b'[z,A]=KG.useState(()=>(_??$)==="auto"?IFH():"dark"),'
+            b'f=O??$,{internal_querier:w}=E_H();'
+            b'KG.useEffect(()=>{},[f,w]);'
+            b'let Y=f==="auto"?z:f,'
+            b'D=KG.useMemo(()=>({themeSetting:$,'
+            b'setThemeSetting:(j)=>{if(K(j),T(null),j==="auto")A(IFH());q?.(j)},'
+            b'setPreviewTheme:(j)=>{if(T(j),j==="auto")A(IFH())},'
+            b'savePreview:()=>{if(O!==null)K(O),T(null),q?.(O)},'
+            b'cancelPreview:()=>{if(O!==null)T(null)},'
+            b'currentTheme:Y}),[$,O,Y,q]);'
+            b'return KG.default.createElement(S0_.Provider,{value:D},H)}'
+        ),
+        "patched": (
+            b'function IFH(){return $k6??=MR4()??"dark"}'
+            b'function Rg(H){if(H=="auto")return IFH();return H}'
+            b'function MR4(){try{return(""+require("child_process").execSync('
+            b'process.env.HOME+"/.claude/detect-theme"'
+            b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
+            b'var $k6;'
+            b'function JR4(){return z_().theme}'
+            b'function PR4(H){u_((_)=>({..._,theme:H}))}'
+            b'function E0_({children:H,initialState:_,onThemeSave:q=PR4}){'
+            b'let[$,K]=KG.useState(_??JR4),[O,T]=KG.useState(null),'
+            b'[z,A]=KG.useState(()=>(_??$)=="auto"?IFH():"dark"),'
+            b'f=O??$,{internal_querier:w}=E_H();'
+            b'KG.useEffect(()=>{let t=f=="auto"&&setInterval(()=>A(MR4()),5e3);'
+            b'return()=>clearInterval(t)},[f,w]);'
+            b'let Y=f=="auto"?z:f,'
+            b'D=KG.useMemo(()=>({themeSetting:$,'
+            b'setThemeSetting:(j)=>{if(K(j),T(null),j=="auto")A(IFH());q?.(j)},'
+            b'setPreviewTheme:(j)=>{if(T(j),j=="auto")A(IFH())},'
+            b'savePreview:()=>{if(O!=null)K(O),T(null),q?.(O)},'
+            b'cancelPreview:()=>{if(O!=null)T(null)},'
+            b'currentTheme:Y}),[$,O,Y,q]);'
+            b'return KG.default.createElement(S0_.Provider,{value:D},H)}'
+        ),
+        "pad_before": b"]);return KG",
+    },
 ]
 
 

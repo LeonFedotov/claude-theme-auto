@@ -113,19 +113,20 @@ The `detect-theme` script uses OSC 11, so theme detection works through SSH + tm
 |---|---|---|---|---|
 | 2.1.76 | macOS arm64 (mise) | Tested | 2026-03-29 | Bun Mach-O, `defaults read` detection |
 | 2.1.86 | Linux aarch64 (mise) | Tested | 2026-03-30 | Bun ELF, `COLORFGBG` detection |
+| 2.1.87 | macOS arm64 (mise) | Tested | 2026-03-30 | Same structure as 2.1.86, different function names |
 
 ### Version differences
 
 The minified JS uses different function names across versions. The patcher maintains patterns for each supported version and auto-detects which one matches.
 
-| | v2.1.76 | v2.1.86 |
-|---|---|---|
-| Theme provider | `MDT` | `EGq` |
-| Cached detect | `Jfq` | `Cd8` |
-| Raw detect | `pPR` / `$k6` | `_k5` |
-| Original method | `defaults read -g AppleInterfaceStyle` | `process.env.COLORFGBG` |
-| React import | `WDT`, `Ak6`, `fm` | `zA` |
-| useEffect deps | `[z]` | `[j, J]` (includes `internal_querier`) |
+| | v2.1.76 | v2.1.86 | v2.1.87 |
+|---|---|---|---|
+| Theme provider | `MDT` | `EGq` | `E0_` |
+| Cached detect | `Jfq` | `Cd8` | `IFH` |
+| Raw detect | `pPR` / `$k6` | `_k5` | `MR4` |
+| Original method | `defaults read` | `COLORFGBG` | `COLORFGBG` |
+| React import | `WDT`, `Ak6`, `fm` | `zA` | `KG` |
+| useEffect deps | `[z]` | `[j, J]` | `[f, w]` |
 
 ## How the original code works
 
