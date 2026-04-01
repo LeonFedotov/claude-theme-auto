@@ -222,10 +222,69 @@ while ($true) {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback — poll with detect-theme script
+// Fallback — OSC 11 via internal querier (no subprocess, async)
 // ---------------------------------------------------------------------------
 
-function watchFallback(setState) {
+// OSC 11 query object — same format as Claude's internal oscColor(11)
+const OSC_BG_QUERY = {
+  request: '\x1b]11;?\x07',  // ESC ] 11 ; ? BEL
+  match: (r) => r.type === 'osc' && r.code === 11,
+};
+
+function parseOscLuminance(data) {
+  // Parse rgb:RRRR/GGGG/BBBB or #RRGGBB
+  let r, g, b;
+  const rgbMatch = data.match(/^rgba?:([0-9a-f]{1,4})\/([0-9a-f]{1,4})\/([0-9a-f]{1,4})/i);
+  if (rgbMatch) {
+    const norm = (hex) => parseInt(hex, 16) / (16 ** hex.length - 1);
+    r = norm(rgbMatch[1]); g = norm(rgbMatch[2]); b = norm(rgbMatch[3]);
+  } else {
+    const hexMatch = data.match(/^#([0-9a-f]+)$/i);
+    if (!hexMatch) return undefined;
+    const h = hexMatch[1];
+    const len = h.length / 3;
+    const norm = (s) => parseInt(s, 16) / (16 ** s.length - 1);
+    r = norm(h.slice(0, len)); g = norm(h.slice(len, len*2)); b = norm(h.slice(len*2));
+  }
+  // ITU-R BT.709 luminance
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 0.5 ? 'light' : 'dark';
+}
+
+function watchQuerier(setState, querier) {
+  let prev = null;
+  let timer = null;
+
+  async function poll() {
+    try {
+      const resp = await Promise.race([
+        (async () => {
+          const r = await querier.send(OSC_BG_QUERY);
+          await querier.flush();
+          return r;
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject('timeout'), 3000)),
+      ]);
+      if (resp && resp.data) {
+        const mode = parseOscLuminance(resp.data);
+        if (mode) {
+          const theme = themeName(mode === 'dark');
+          if (theme !== prev) { prev = theme; setState(theme); }
+        }
+      }
+    } catch {}
+  }
+
+  poll(); // initial detection
+  timer = setInterval(poll, 5000); // poll every 5s (lightweight — no subprocess)
+  return () => clearInterval(timer);
+}
+
+// ---------------------------------------------------------------------------
+// Fallback — poll with detect-theme script (no querier available)
+// ---------------------------------------------------------------------------
+
+function watchScript(setState) {
   const script = path.join(CLAUDE_DIR, 'detect-theme');
   function detect() {
     try {
@@ -240,19 +299,21 @@ function watchFallback(setState) {
   const timer = setInterval(() => {
     const curr = detect();
     if (curr !== prev) { prev = curr; setState(curr); }
-  }, 1000);
+  }, 5000);
 
   return () => clearInterval(timer);
 }
 
 // ---------------------------------------------------------------------------
-// Entry point
+// Entry point — called by patched binary: require("~/.claude/tw")(setState, querier?)
 // ---------------------------------------------------------------------------
 
-module.exports = function(setState) {
+module.exports = function(setState, querier) {
   const platform = process.platform;
   if (platform === 'darwin') return watchDarwin(setState);
   if (platform === 'linux') return watchLinux(setState);
   if (platform === 'win32') return watchWindows(setState);
-  return watchFallback(setState);
+  // SSH/tmux/other: use querier if available, else shell script
+  if (querier) return watchQuerier(setState, querier);
+  return watchScript(setState);
 };

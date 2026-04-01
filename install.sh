@@ -137,11 +137,11 @@ PLISTEOF
   fi
 fi
 
-# Install self-healing hook — auto-patches after Claude Code updates
+# Install update detection hook
 info "Installing SessionStart hook..."
 curl -fsSL --max-time 15 --connect-timeout 5 "$REPO/check-theme-patch.sh" -o "$CLAUDE_DIR/check-theme-patch.sh"
+curl -fsSL --max-time 15 --connect-timeout 5 "$REPO/CLAUDE.md" -o "$CLAUDE_DIR/CLAUDE.md"
 chmod +x "$CLAUDE_DIR/check-theme-patch.sh"
-cp "$TMPDIR/patch-theme.py" "$CLAUDE_DIR/patch-theme.py"
 
 # Record current version
 CLAUDE_VER=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
@@ -149,16 +149,16 @@ CLAUDE_VER=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.
 
 # Add hook to settings.json
 SETTINGS="$CLAUDE_DIR/settings.json"
-if [ -f "$SETTINGS" ]; then
-  # Merge hook into existing settings using python
-  python3 -c "
-import json, sys
+python3 -c "
+import json, sys, os
 p = '$SETTINGS'
-with open(p) as f: s = json.load(f)
+try:
+    with open(p) as f: s = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    s = {}
 h = s.setdefault('hooks', {})
 ss = h.setdefault('SessionStart', [])
 hook_cmd = 'bash \$HOME/.claude/check-theme-patch.sh'
-# Check if already installed
 for entry in ss:
     for hk in entry.get('hooks', []):
         if 'check-theme-patch' in hk.get('command', ''):
@@ -168,33 +168,11 @@ ss.append({
     'hooks': [{
         'type': 'command',
         'command': hook_cmd,
-        'timeout': 30
+        'timeout': 10
     }]
 })
 with open(p, 'w') as f: json.dump(s, f, indent=2); f.write('\n')
-" && ok "SessionStart hook installed (auto-patches after updates)"
-else
-  # Create new settings.json
-  cat > "$SETTINGS" << 'HOOKEOF'
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/check-theme-patch.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
-}
-HOOKEOF
-  ok "SessionStart hook installed (auto-patches after updates)"
-fi
+" && ok "SessionStart hook installed (detects updates, Claude fixes the patch)"
 
 echo
 ok "Done! Restart Claude Code to activate."
