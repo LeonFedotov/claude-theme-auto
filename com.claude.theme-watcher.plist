@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claude.theme-watcher</string>
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Install: sed -i '' "s|__HOME__|$HOME|" before loading -->
+        <string>__HOME__/.claude/theme-watcher</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/claude-theme-watcher.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/claude-theme-watcher.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

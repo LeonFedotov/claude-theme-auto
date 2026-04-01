@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Claude Code Theme Auto-Switch Patch
+Claude Theme Auto — reactive dark/light theme switching for Claude Code
 
-Patches the Claude Code binary to reactively follow the terminal's dark/light
-mode while a session is running. Without this patch, the built-in "auto" theme
-only detects the OS theme at startup.
+Patches the Claude Code binary so the "auto" theme reactively follows the
+terminal's dark/light mode while a session is running. Without this patch,
+the built-in "auto" theme only detects the OS theme once at startup.
 
-The patch adds a 5-second polling interval inside the theme provider's
-useEffect hook. When the theme setting is "auto", it periodically calls
-~/.claude/detect-theme (installed by this patcher) which uses OSC 11 to
-query the terminal's background color and derive dark/light from luminance.
+The patch rewrites the theme provider's useEffect hook so that when the
+theme setting is "auto", it requires ~/.claude/tw.js which owns all
+reactive theme-switching logic (no byte budget constraints).
 
-This works on macOS, Linux, through SSH, and through tmux — anywhere the
-terminal supports OSC 11 (Ghostty, iTerm2, WezTerm, Kitty, and most modern
-terminal emulators).
+On macOS this uses `defaults read -g AppleInterfaceStyle` (instant).
+On Linux/SSH/tmux it uses OSC 11 to query the terminal's background color.
 
 Byte-budget technique: the replacement must be exactly the same length as
 the original to avoid shifting offsets in the binary. We achieve this by
 compressing nearby code (=== to ==, ??= operator, etc.) and padding with
 whitespace.
+
+Based on https://github.com/antonioacg/claude-code-theme-patch
 
 Usage:
     python3 patch-theme.py              # Apply patch
@@ -82,8 +82,7 @@ VERSIONS = [
             b'function MDT({children:_,initialState:T,onThemeSave:q=gPR}){'
             b'let[R,K]=fm.useState(T??BPR),[$,O]=fm.useState(null),'
             b'[A,H]=fm.useState(()=>(T??R)=="auto"?Jfq():"dark"),z=$??R;'
-            b'WDT.useEffect(()=>{let t=z=="auto"&&setInterval(()=>H(pPR()),5e3);'
-            b'return()=>clearInterval(t)},[z]);'
+            b'WDT.useEffect(()=>{try{if(z=="auto")return require(process.env.HOME+"/.claude/tw")(H)}catch{}},[z]);'
             b'let j=z=="auto"?A:z,'
             b'D=Ak6.useMemo(()=>({themeSetting:R,'
             b'setThemeSetting:(f)=>{if(K(f),O(null),f=="auto")H(Wfq());q?.(f)},'
@@ -135,8 +134,7 @@ VERSIONS = [
             b'let[O,z]=zA.useState(_??Kk5),[Y,H]=zA.useState(null),'
             b'[$,w]=zA.useState(()=>(_??O)=="auto"?Cd8():"dark"),'
             b'j=Y??O,{internal_querier:J}=yq8();'
-            b'zA.useEffect(()=>{let t=j=="auto"&&setInterval(()=>w(_k5()),5e3);'
-            b'return()=>clearInterval(t)},[j,J]);'
+            b'zA.useEffect(()=>{try{if(j=="auto")return require(process.env.HOME+"/.claude/tw")(w)}catch{}},[j,J]);'
             b'let T=j=="auto"?$:j,'
             b'X=zA.useMemo(()=>({themeSetting:O,'
             b'setThemeSetting:(D)=>{if(z(D),H(null),D=="auto")w(Cd8());K?.(D)},'
@@ -188,8 +186,7 @@ VERSIONS = [
             b'let[$,K]=KG.useState(_??JR4),[O,T]=KG.useState(null),'
             b'[z,A]=KG.useState(()=>(_??$)=="auto"?IFH():"dark"),'
             b'f=O??$,{internal_querier:w}=E_H();'
-            b'KG.useEffect(()=>{let t=f=="auto"&&setInterval(()=>A(MR4()),5e3);'
-            b'return()=>clearInterval(t)},[f,w]);'
+            b'KG.useEffect(()=>{try{if(f=="auto")return require(process.env.HOME+"/.claude/tw")(A)}catch{}},[f,w]);'
             b'let Y=f=="auto"?z:f,'
             b'D=KG.useMemo(()=>({themeSetting:$,'
             b'setThemeSetting:(j)=>{if(K(j),T(null),j=="auto")A(IFH());q?.(j)},'
@@ -241,8 +238,7 @@ VERSIONS = [
             b'let[O,z]=OA.useState(_??Kk5),[Y,H]=OA.useState(null),'
             b'[$,w]=OA.useState(()=>(_??O)=="auto"?Cd8():"dark"),'
             b'j=Y??O,{internal_querier:J}=Vq8();'
-            b'OA.useEffect(()=>{let t=j=="auto"&&setInterval(()=>w(_k5()),5e3);'
-            b'return()=>clearInterval(t)},[j,J]);'
+            b'OA.useEffect(()=>{try{if(j=="auto")return require(process.env.HOME+"/.claude/tw")(w)}catch{}},[j,J]);'
             b'let T=j=="auto"?$:j,'
             b'X=OA.useMemo(()=>({themeSetting:O,'
             b'setThemeSetting:(D)=>{if(z(D),H(null),D=="auto")w(Cd8());K?.(D)},'
@@ -294,8 +290,7 @@ VERSIONS = [
             b'let[K,$]=UG.useState(_??pG4),[O,T]=UG.useState(null),'
             b'[z,A]=UG.useState(()=>(_??K)=="auto"?rUH():"dark"),'
             b'w=O??K,{internal_querier:f}=W6H();'
-            b'UG.useEffect(()=>{let t=w=="auto"&&setInterval(()=>A(uG4()),5e3);'
-            b'return()=>clearInterval(t)},[w,f]);'
+            b'UG.useEffect(()=>{try{if(w=="auto")return require(process.env.HOME+"/.claude/tw")(A)}catch{}},[w,f]);'
             b'let Y=w=="auto"?z:w,'
             b'j=UG.useMemo(()=>({themeSetting:K,'
             b'setThemeSetting:(D)=>{if($(D),T(null),D=="auto")A(rUH());q?.(D)},'
@@ -352,9 +347,9 @@ def find_claude_binary() -> str | None:
     # 1. ~/.local/share/claude/versions (official install)
     versions_path = os.path.expanduser("~/.local/share/claude/versions")
     if os.path.isdir(versions_path):
+        # Check for versioned files (e.g., 2.1.89)
         versions = sorted(
-            [v for v in os.listdir(versions_path)
-             if os.path.isfile(os.path.join(versions_path, v)) and not v.endswith('.backup')],
+            [v for v in os.listdir(versions_path) if os.path.isfile(os.path.join(versions_path, v)) and not v.endswith('.backup')],
             reverse=True,
         )
         for v in versions:
@@ -371,7 +366,7 @@ def find_claude_binary() -> str | None:
             if os.path.isfile(candidate):
                 return candidate
 
-    # 2. which
+    # 3. which
     try:
         result = subprocess.run(
             ["which", "claude"], capture_output=True, text=True, timeout=5
@@ -383,7 +378,7 @@ def find_claude_binary() -> str | None:
     except Exception:
         pass
 
-    # 3. Common locations
+    # 4. Common locations
     for c in [
         os.path.expanduser("~/.claude/local/claude"),
         "/usr/local/bin/claude",
@@ -427,13 +422,13 @@ def install_detect_theme(dry_run: bool = False) -> bool:
         return False
 
     if dry_run:
-        print(f"DRY RUN: Would install {source} → {DETECT_THEME_PATH}")
+        print(f"DRY RUN: Would install {source} -> {DETECT_THEME_PATH}")
         return True
 
     os.makedirs(os.path.dirname(DETECT_THEME_PATH), exist_ok=True)
     shutil.copy2(source, DETECT_THEME_PATH)
     os.chmod(DETECT_THEME_PATH, 0o755)
-    print(f"Installed detect-theme → {DETECT_THEME_PATH}")
+    print(f"Installed detect-theme -> {DETECT_THEME_PATH}")
     return True
 
 
@@ -475,7 +470,7 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
     if dry_run:
         print(f"DRY RUN: Would patch {count} occurrence(s) in {binary_path}")
         print(f"  Pattern length: {len(version['original'])} bytes (same-length replacement)")
-        print(f"  Detection: ~/.claude/detect-theme (OSC 11 terminal query)")
+        print(f"  Detection: ~/.claude/detect-theme")
         install_detect_theme(dry_run=True)
         return True
 
@@ -520,7 +515,7 @@ def apply_patch(binary_path: str, dry_run: bool = False) -> bool:
     set_theme_auto()
 
     print("\nDone! Restart Claude Code to activate.")
-    print("Theme follows the terminal (polls every 5s via OSC 11).")
+    print("Theme follows the terminal via ~/.claude/tw.js")
     return True
 
 
