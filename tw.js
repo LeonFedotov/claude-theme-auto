@@ -276,7 +276,7 @@ function watchQuerier(setState, querier) {
   }
 
   poll(); // initial detection
-  timer = setInterval(poll, 5000); // poll every 5s (lightweight — no subprocess)
+  timer = setInterval(poll, 500); // poll every 500ms (native async, zero overhead)
   return () => clearInterval(timer);
 }
 
@@ -299,7 +299,7 @@ function watchScript(setState) {
   const timer = setInterval(() => {
     const curr = detect();
     if (curr !== prev) { prev = curr; setState(curr); }
-  }, 5000);
+  }, 1000);
 
   return () => clearInterval(timer);
 }
