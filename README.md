@@ -4,6 +4,55 @@ Patches the Claude Code binary so the `"auto"` theme reactively follows terminal
 
 Without this patch, Claude Code's built-in `"auto"` theme only checks the OS appearance at startup. If you switch from light to dark mode mid-session, the UI stays on the old theme until you restart.
 
+## One-click install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/antonioacg/claude-code-theme-patch/main/install.sh | bash
+```
+
+Then restart Claude Code.
+
+### Options
+
+**Standard themes** (hardcoded RGB) instead of ANSI:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/antonioacg/claude-code-theme-patch/main/install.sh | THEME_STYLE=standard bash
+```
+
+**Check status:**
+
+```bash
+curl -fsSL .../install.sh | bash -s -- --check
+```
+
+**Restore original:**
+
+```bash
+curl -fsSL .../install.sh | bash -s -- --restore
+```
+
+## Theme styles
+
+The installer ships two detect-theme variants:
+
+| Style | Themes | Best for |
+|---|---|---|
+| `ansi` (default) | `dark-ansi` / `light-ansi` | Terminals that auto-switch color palettes (Ghostty, iTerm2, WezTerm) |
+| `standard` | `dark` / `light` | Fixed-palette terminals or when you want Claude's built-in RGB colors |
+
+ANSI themes use your terminal's color palette, so they look correct regardless of which palette is active. Standard themes use hardcoded RGB values that may clash with your terminal's background after a switch.
+
+To switch styles after installing, copy the desired variant over the installed script:
+
+```bash
+# Switch to ANSI
+cp detect-theme-ansi ~/.claude/detect-theme
+
+# Switch to standard
+cp detect-theme-standard ~/.claude/detect-theme
+```
+
 ## How it works
 
 Two components:
@@ -28,10 +77,8 @@ WDT.useEffect(() => {
 ### 2. detect-theme script — OSC 11 terminal query
 
 A small shell script at `~/.claude/detect-theme` that:
-1. Opens `/dev/tty` and sends the [OSC 11](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands) escape sequence (`\033]11;?\033\\`)
-2. The terminal responds with its current background color as `rgb:RRRR/GGGG/BBBB`
-3. Computes luminance from the RGB values
-4. Prints `dark` (luminance < 128) or `light` to stdout
+1. **macOS fast path**: uses `defaults read -g AppleInterfaceStyle` (instant, no TTY needed)
+2. **OSC 11 fallback**: opens `/dev/tty` and sends the [OSC 11](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands) escape sequence (`\033]11;?\033\\`). The terminal responds with its current background color as `rgb:RRRR/GGGG/BBBB`. Computes luminance and prints the appropriate theme name.
 
 This queries the **terminal directly** — not the OS. It works:
 - **macOS** — Ghostty, iTerm2, WezTerm, Kitty, Terminal.app
@@ -60,9 +107,9 @@ After patching, the binary is ad-hoc re-signed with `codesign -s -` on macOS.
 
 - Python 3.10+
 - A terminal with OSC 11 support (most modern terminals)
-- Claude Code installed as a compiled binary (mise, standalone download). For npm installations, edit `cli.js` directly.
+- Claude Code installed as a compiled binary (official install, mise, or standalone download)
 
-## Usage
+## Manual usage
 
 ```bash
 # Apply the patch (patches binary + installs detect-theme script)
@@ -82,8 +129,8 @@ python3 patch-theme.py --path /path/to/claude
 ```
 
 The patcher automatically:
-1. Locates the Claude Code binary (mise → `which` → common paths)
-2. Installs `~/.claude/detect-theme` (OSC 11 detection script)
+1. Locates the Claude Code binary (`~/.local/share/claude/versions` → mise → `which` → common paths)
+2. Installs `~/.claude/detect-theme` (detection script)
 3. Creates a backup (`.backup` alongside the binary)
 4. Applies the same-length byte replacement
 5. Re-signs the binary (macOS only)
@@ -91,7 +138,7 @@ The patcher automatically:
 
 ### After Claude Code updates
 
-Updates replace the binary, removing the patch. Re-run `python3 patch-theme.py` after each update. The `detect-theme` script persists across updates.
+Updates replace the binary, removing the patch. Re-run the install command or `python3 patch-theme.py`. The `detect-theme` script persists across updates.
 
 ### Remote servers
 
@@ -115,19 +162,20 @@ The `detect-theme` script uses OSC 11, so theme detection works through SSH + tm
 | 2.1.86 | Linux aarch64 (mise) | Tested | 2026-03-30 | Bun ELF, `COLORFGBG` detection |
 | 2.1.87 | macOS arm64 (mise) | Tested | 2026-03-30 | Same structure as 2.1.86, different function names |
 | 2.1.87 | Linux aarch64 (mise) | Tested | 2026-03-30 | Different names than macOS build of same version |
+| 2.1.89 | macOS arm64 | Tested | 2026-04-01 | Official install (`~/.local/share/claude/versions`) |
 
 ### Version differences
 
 The minified JS uses different function names across versions. The patcher maintains patterns for each supported version and auto-detects which one matches.
 
-| | v2.1.76 | v2.1.86 | v2.1.87 |
-|---|---|---|---|
-| Theme provider | `MDT` | `EGq` | `E0_` |
-| Cached detect | `Jfq` | `Cd8` | `IFH` |
-| Raw detect | `pPR` / `$k6` | `_k5` | `MR4` |
-| Original method | `defaults read` | `COLORFGBG` | `COLORFGBG` |
-| React import | `WDT`, `Ak6`, `fm` | `zA` | `KG` |
-| useEffect deps | `[z]` | `[j, J]` | `[f, w]` |
+| | v2.1.76 | v2.1.86 | v2.1.87 | v2.1.89 |
+|---|---|---|---|---|
+| Theme provider | `MDT` | `EGq` | `E0_` | `pG_` |
+| Cached detect | `Jfq` | `Cd8` | `IFH` | `rUH` |
+| Raw detect | `pPR` / `$k6` | `_k5` | `MR4` | `uG4` |
+| Original method | `defaults read` | `COLORFGBG` | `COLORFGBG` | `COLORFGBG` |
+| React import | `WDT`, `Ak6`, `fm` | `zA` | `KG` | `UG` |
+| useEffect deps | `[z]` | `[j, J]` | `[f, w]` | `[w, f]` |
 
 ## How the original code works
 
@@ -146,6 +194,21 @@ Claude Code already supports `"auto"` as a theme value (not documented). The det
 
 The gap: `Wfq()` only fires when the user interacts with the theme picker. There is no listener for theme changes mid-session. This patch fills that gap with polling, and replaces the macOS-only `defaults` detection with cross-platform OSC 11.
 
+### Available theme values
+
+Claude Code supports six theme values internally:
+
+| Value | Label |
+|---|---|
+| `dark` | Dark mode |
+| `light` | Light mode |
+| `dark-daltonized` | Dark mode (colorblind-friendly) |
+| `light-daltonized` | Light mode (colorblind-friendly) |
+| `dark-ansi` | Dark mode (ANSI colors only) |
+| `light-ansi` | Light mode (ANSI colors only) |
+
+The detect-theme script can return any of these. The `detect-theme-ansi` variant returns `dark-ansi`/`light-ansi` which use the terminal's ANSI color palette — ideal for terminals that auto-switch palettes on theme change.
+
 ## Context
 
 - [Issue #2990](https://github.com/anthropics/claude-code/issues/2990) — Automatic light/dark theme selection
@@ -157,12 +220,14 @@ The gap: `Wfq()` only fires when the user interacts with the theme picker. There
 ## Restoring
 
 ```bash
+# Via the installer
+curl -fsSL .../install.sh | bash -s -- --restore
+
 # Via the patcher
 python3 patch-theme.py --restore
 
 # Or manually
-cp ~/.local/share/mise/installs/claude/2.1.76/claude.backup \
-   ~/.local/share/mise/installs/claude/2.1.76/claude
+cp /path/to/claude.backup /path/to/claude
 ```
 
 ## License

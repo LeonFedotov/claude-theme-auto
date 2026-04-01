@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Detect terminal dark/light mode. Prints "dark-ansi" or "light-ansi" to stdout.
+# These map to Claude Code's "ANSI colors only" themes which adapt to your
+# terminal's color palette — the best choice for terminals that auto-switch.
+#
+# 1. macOS: `defaults read` (instant, no TTY needed)
+# 2. OSC 11: query terminal background color (works over SSH, tmux)
+# 3. Fallback: "dark-ansi"
+
+DARK="dark-ansi"
+LIGHT="light-ansi"
+
+# Fast path: macOS defaults (no TTY or network roundtrip needed)
+if command -v defaults &>/dev/null; then
+  if defaults read -g AppleInterfaceStyle &>/dev/null; then
+    echo "$DARK"
+  else
+    echo "$LIGHT"
+  fi
+  exit 0
+fi
+
+# OSC 11: query terminal background color via /dev/tty
+exec 3<>/dev/tty 2>/dev/null || { echo "$DARK"; exit 0; }
+old=$(stty -g </dev/tty 2>/dev/null)
+stty raw -echo </dev/tty 2>/dev/null
+printf '\033]11;?\033\\' >&3
+r=
+while IFS= read -r -t 3 -n 1 c <&3 2>/dev/null; do
+  r="$r$c"
+  case "$r" in *\\) break;; esac
+  if [ ${#r} -gt 60 ]; then break; fi
+done
+stty "$old" </dev/tty 2>/dev/null
+exec 3>&-
+case "$r" in
+  *rgb:*)
+    hex=$(echo "$r" | sed 's/.*rgb:\([^\\]*\).*/\1/')
+    R=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f1 | cut -c1-2)")
+    G=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f2 | cut -c1-2)")
+    B=$(printf '%d' "0x$(echo "$hex" | cut -d/ -f3 | cut -c1-2)")
+    lum=$(( (R * 299 + G * 587 + B * 114) / 1000 ))
+    if [ "$lum" -lt 128 ]; then echo "$DARK"; else echo "$LIGHT"; fi
+    ;;
+  *) echo "$DARK" ;;
+esac

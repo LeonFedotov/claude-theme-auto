@@ -254,6 +254,59 @@ VERSIONS = [
         ),
         "pad_before": b"]);return OA",
     },
+    {
+        "label": "2.1.89",
+        "original": (
+            b'function rUH(){if(Xv6===void 0)Xv6=uG4()??"dark";return Xv6}'
+            b'function Ad(H){if(H==="auto")return rUH();return H}'
+            b'function uG4(){let H=process.env.COLORFGBG;if(!H)return;'
+            b'let _=H.split(";"),q=_[_.length-1];'
+            b'if(q===void 0||q==="")return;'
+            b'let K=Number(q);if(!Number.isInteger(K)||K<0||K>15)return;'
+            b'return K<=6||K===8?"dark":"light"}'
+            b'var Xv6;'
+            b'function pG4(){return z_().theme}'
+            b'function gG4(H){S_((_)=>({..._,theme:H}))}'
+            b'function pG_({children:H,initialState:_,onThemeSave:q=gG4}){'
+            b'let[K,$]=UG.useState(_??pG4),[O,T]=UG.useState(null),'
+            b'[z,A]=UG.useState(()=>(_??K)==="auto"?rUH():"dark"),'
+            b'w=O??K,{internal_querier:f}=W6H();'
+            b'UG.useEffect(()=>{},[w,f]);'
+            b'let Y=w==="auto"?z:w,'
+            b'j=UG.useMemo(()=>({themeSetting:K,'
+            b'setThemeSetting:(D)=>{if($(D),T(null),D==="auto")A(rUH());q?.(D)},'
+            b'setPreviewTheme:(D)=>{if(T(D),D==="auto")A(rUH())},'
+            b'savePreview:()=>{if(O!==null)$(O),T(null),q?.(O)},'
+            b'cancelPreview:()=>{if(O!==null)T(null)},'
+            b'currentTheme:Y}),[K,O,Y,q]);'
+            b'return UG.default.createElement(mG_.Provider,{value:j},H)}'
+        ),
+        "patched": (
+            b'function rUH(){return Xv6??=uG4()??"dark"}'
+            b'function Ad(H){if(H=="auto")return rUH();return H}'
+            b'function uG4(){try{return(""+require("child_process").execSync('
+            b'process.env.HOME+"/.claude/detect-theme"'
+            b',{stdio:"pipe",timeout:3e3})).trim()}catch{return"dark"}}'
+            b'var Xv6;'
+            b'function pG4(){return z_().theme}'
+            b'function gG4(H){S_((_)=>({..._,theme:H}))}'
+            b'function pG_({children:H,initialState:_,onThemeSave:q=gG4}){'
+            b'let[K,$]=UG.useState(_??pG4),[O,T]=UG.useState(null),'
+            b'[z,A]=UG.useState(()=>(_??K)=="auto"?rUH():"dark"),'
+            b'w=O??K,{internal_querier:f}=W6H();'
+            b'UG.useEffect(()=>{let t=w=="auto"&&setInterval(()=>A(uG4()),5e3);'
+            b'return()=>clearInterval(t)},[w,f]);'
+            b'let Y=w=="auto"?z:w,'
+            b'j=UG.useMemo(()=>({themeSetting:K,'
+            b'setThemeSetting:(D)=>{if($(D),T(null),D=="auto")A(rUH());q?.(D)},'
+            b'setPreviewTheme:(D)=>{if(T(D),D=="auto")A(rUH())},'
+            b'savePreview:()=>{if(O!=null)$(O),T(null),q?.(O)},'
+            b'cancelPreview:()=>{if(O!=null)T(null)},'
+            b'currentTheme:Y}),[K,O,Y,q]);'
+            b'return UG.default.createElement(mG_.Provider,{value:j},H)}'
+        ),
+        "pad_before": b"]);return UG",
+    },
 ]
 
 
@@ -296,7 +349,20 @@ def build_patched(version: dict) -> bytes:
 def find_claude_binary() -> str | None:
     """Locate the Claude Code binary using multiple strategies."""
 
-    # 1. mise
+    # 1. ~/.local/share/claude/versions (official install)
+    versions_path = os.path.expanduser("~/.local/share/claude/versions")
+    if os.path.isdir(versions_path):
+        versions = sorted(
+            [v for v in os.listdir(versions_path)
+             if os.path.isfile(os.path.join(versions_path, v)) and not v.endswith('.backup')],
+            reverse=True,
+        )
+        for v in versions:
+            candidate = os.path.join(versions_path, v)
+            if os.path.isfile(candidate):
+                return candidate
+
+    # 2. mise
     mise_path = os.path.expanduser("~/.local/share/mise/installs/claude")
     if os.path.isdir(mise_path):
         versions = sorted(os.listdir(mise_path), reverse=True)
