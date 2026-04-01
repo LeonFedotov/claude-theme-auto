@@ -135,8 +135,23 @@ The `internal_querier` variable (`QQ` above) is passed as the second argument to
 **If `internal_querier` is NOT present** (e.g., the version removed it or restructured):
 - Pass only setState: `require(...)(setState)`
 - tw.js handles this gracefully — macOS/Linux/Windows watchers don't need the querier
-- SSH/tmux users will get static theme detection only (initial detection at startup)
-- Consider noting this limitation in the PR/commit message
+- SSH/tmux users will get static detection only (initial detection at startup)
+- **Optional fallback**: if SSH/tmux reactive switching is needed without the querier, add a `watchScript` function to tw.js that polls `~/.claude/detect-theme` via `execSync` every 1 second (the detect-theme scripts are still installed). This was previously included but removed to keep tw.js minimal. Example:
+  ```javascript
+  function watchScript(setState) {
+    const script = require('path').join(require('os').homedir(), '.claude', 'detect-theme');
+    let prev = require('child_process').execSync(script, {stdio:'pipe',timeout:3000}).toString().trim();
+    setState(prev);
+    const t = setInterval(() => {
+      try {
+        const c = require('child_process').execSync(script, {stdio:'pipe',timeout:3000}).toString().trim();
+        if (c !== prev) { prev = c; setState(c); }
+      } catch {}
+    }, 1000);
+    return () => clearInterval(t);
+  }
+  ```
+  Wire it as the final fallback in the entry point: `if (!querier) return watchScript(setState);`
 
 ### Step 5: Verify
 
