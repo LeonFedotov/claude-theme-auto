@@ -79,9 +79,9 @@ fi
 info "Patching binary..."
 python3 "$TMPDIR/patch-theme.py"
 
-# macOS: optionally compile Swift watcher for 0ms latency
+# macOS: compile Swift watcher for 0ms latency
 if [ "$(uname)" = "Darwin" ] && command -v swiftc &>/dev/null; then
-  info "Compiling Swift theme watcher (0ms latency)..."
+  info "Compiling Swift theme watcher..."
   curl -fsSL --max-time 15 --connect-timeout 5 "$REPO/theme-watcher.swift" -o "$TMPDIR/theme-watcher.swift"
 
   DARK_ARG="dark-ansi"
@@ -94,7 +94,6 @@ if [ "$(uname)" = "Darwin" ] && command -v swiftc &>/dev/null; then
   if swiftc -O -o "$CLAUDE_DIR/theme-watcher" "$TMPDIR/theme-watcher.swift" 2>/dev/null; then
     ok "Swift watcher compiled"
 
-    # Install launchd agent
     PLIST_DIR="$HOME/Library/LaunchAgents"
     PLIST="$PLIST_DIR/com.claude.theme-watcher.plist"
     mkdir -p "$PLIST_DIR"
@@ -127,7 +126,6 @@ if [ "$(uname)" = "Darwin" ] && command -v swiftc &>/dev/null; then
 </plist>
 PLISTEOF
 
-    # Start the watcher
     launchctl bootout gui/$(id -u) "$PLIST" 2>/dev/null || true
     launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null && \
       ok "Swift watcher running (0ms theme detection)" || \
