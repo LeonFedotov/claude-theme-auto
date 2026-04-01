@@ -281,30 +281,6 @@ function watchQuerier(setState, querier) {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback — poll with detect-theme script (no querier available)
-// ---------------------------------------------------------------------------
-
-function watchScript(setState) {
-  const script = path.join(CLAUDE_DIR, 'detect-theme');
-  function detect() {
-    try {
-      return execSync(script, { stdio: 'pipe', timeout: 3000 }).toString().trim();
-    } catch {
-      return DARK;
-    }
-  }
-
-  let prev = detect();
-  setState(prev);
-  const timer = setInterval(() => {
-    const curr = detect();
-    if (curr !== prev) { prev = curr; setState(curr); }
-  }, 1000);
-
-  return () => clearInterval(timer);
-}
-
-// ---------------------------------------------------------------------------
 // Entry point — called by patched binary: require("~/.claude/tw")(setState, querier?)
 // ---------------------------------------------------------------------------
 
@@ -313,7 +289,8 @@ module.exports = function(setState, querier) {
   if (platform === 'darwin') return watchDarwin(setState);
   if (platform === 'linux') return watchLinux(setState);
   if (platform === 'win32') return watchWindows(setState);
-  // SSH/tmux/other: use querier if available, else shell script
   if (querier) return watchQuerier(setState, querier);
-  return watchScript(setState);
+  // No watcher available — just do initial detection
+  setState(DARK);
+  return () => {};
 };
