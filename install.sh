@@ -137,6 +137,66 @@ PLISTEOF
   fi
 fi
 
+# Install self-healing hook — auto-patches after Claude Code updates
+info "Installing SessionStart hook..."
+curl -fsSL --max-time 15 --connect-timeout 5 "$REPO/check-theme-patch.sh" -o "$CLAUDE_DIR/check-theme-patch.sh"
+chmod +x "$CLAUDE_DIR/check-theme-patch.sh"
+cp "$TMPDIR/patch-theme.py" "$CLAUDE_DIR/patch-theme.py"
+
+# Record current version
+CLAUDE_VER=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+[ -n "$CLAUDE_VER" ] && echo "$CLAUDE_VER" > "$CLAUDE_DIR/.patched-version"
+
+# Add hook to settings.json
+SETTINGS="$CLAUDE_DIR/settings.json"
+if [ -f "$SETTINGS" ]; then
+  # Merge hook into existing settings using python
+  python3 -c "
+import json, sys
+p = '$SETTINGS'
+with open(p) as f: s = json.load(f)
+h = s.setdefault('hooks', {})
+ss = h.setdefault('SessionStart', [])
+hook_cmd = 'bash \$HOME/.claude/check-theme-patch.sh'
+# Check if already installed
+for entry in ss:
+    for hk in entry.get('hooks', []):
+        if 'check-theme-patch' in hk.get('command', ''):
+            sys.exit(0)
+ss.append({
+    'matcher': 'startup',
+    'hooks': [{
+        'type': 'command',
+        'command': hook_cmd,
+        'timeout': 30
+    }]
+})
+with open(p, 'w') as f: json.dump(s, f, indent=2); f.write('\n')
+" && ok "SessionStart hook installed (auto-patches after updates)"
+else
+  # Create new settings.json
+  cat > "$SETTINGS" << 'HOOKEOF'
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/check-theme-patch.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKEOF
+  ok "SessionStart hook installed (auto-patches after updates)"
+fi
+
 echo
 ok "Done! Restart Claude Code to activate."
 ok "Theme switches automatically when OS appearance changes."
+ok "After Claude Code updates, the patch re-applies automatically on next session."
