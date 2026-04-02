@@ -24,7 +24,7 @@ echo "$CURRENT" > "$MARKER"
 cat << EOF
 IMPORTANT: Claude Code was updated from $PREVIOUS to $CURRENT. The theme auto-switch binary patch was overwritten.
 
-To fix: follow the instructions in ~/.claude/CLAUDE.md or https://github.com/LeonFedotov/claude-theme-auto/blob/main/CLAUDE.md to extract the new version's minified names, update patch-theme.py, and re-apply the patch.
+To fix: follow the instructions in ~/.claude/CLAUDE.md or https://github.com/antonioacg/claude-code-theme-patch/blob/main/CLAUDE.md to extract the new version's minified names, update patch-theme.py, and re-apply the patch.
 
 The files at ~/.claude/tw.js and ~/.claude/detect-theme are still intact — only the binary patch needs re-applying.
 EOF
